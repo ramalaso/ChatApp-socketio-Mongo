@@ -16,28 +16,29 @@ var Message = mongoose.model('Message', {
     message: String
 });
 
-// var messages = [
-//     { name: 'Ramalaso', message: "Hello Judith" },
-//     { name: 'Judith', message: "Hello Ramalaso" }
-// ];
-
 app.get('/messages', (req, res) => {
     Message.find({}, (error, messages) => {
         res.send(messages);
     });
 });
 
-app.post('/messages', (req, res) => {
-    var message = new Message(req.body);
-    message.save((error) => {
-        if (error) {
-            sendStatus(500);
-        }
-        io.emit('message', req.body);
+app.post('/messages', async (req, res) => {
+    try {
+        var message = new Message(req.body);
+        var savedMessage = await message.save();
+        console.log('saved');
+        var censored = await Message.findOne({ message: 'badword' });
+        if (censored)
+            await Message.remove({ _id: censored.id });
+        else
+            io.emit('message', req.body);
         res.sendStatus(200);
-
-    });
-    console.log(req.body);
+    } catch (error) {
+        res.sendStatus(500);
+        return console.error(error);
+    } finally {
+        console.log('message post called');
+    }
 });
 
 io.on('connection', (socket) => {
